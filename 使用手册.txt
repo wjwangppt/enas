@@ -1,0 +1,133 @@
+使用手册
+
+*数据集存放在源目录下data文件夹下
+
+搜索RNN架构的运行方式：
+
+    1) 用户可以运行源目录下 search_rnn.sh，执行RNN的搜索过程。
+
+        其中，search_rnn.sh中的执行内容（包括用户自定义参数）：
+
+        python src/trainer.py \
+            --output_dir="output" \
+            --data_path="data/ptb/ptb.pkl" \
+            --network_type="rnn" \
+            --rnn_num_layers=8 \
+
+        参数说明：
+        output_dir：输出日志文件的目录
+        data_path：数据集目录（此处默认为Penn Treebank数据集）
+        network_type：此次搜索的目标，参数值必须为rnn或cnn
+        rnn_num_layers：此次搜索的CNN网络的层数
+
+    2) 用户需要利用 1) 中找到的架构（fixed_arc），在完整的数据集上refit一次。此处用户需要运行 fixed_rnn.sh。
+
+        其中，fixed_rnn.sh中的执行内容（包括用户自定义参数）：
+
+        python src/trainer.py \
+            --output_dir="output" \
+            --data_path="data/ptb/ptb.pkl" \
+            --network_type="rnn" \
+            --fixed_arc='0 2 1 0 2 1 2 2 4 0 5 0 3 2 6 2' \
+
+        参数说明：
+        前三个参数说明同上
+        fixed_arc：为1）中找到的最佳架构数字表达形式（此处为一个样例）
+
+
+搜索CNN架构的运行方式：
+
+    在宏观搜索空间下的搜索方式：
+
+    1) 用户可以运行源目录下 search_cnn_macro.sh，执行CNN_Macro的搜索过程。
+
+        其中，search_cnn_macro.sh中的执行内容（包括用户自定义参数）：
+
+        python src/trainer.py \
+            --output_dir="output" \
+            --data_path="data/cifar10" \
+            --network_type="cnn" \
+            --search_for="macro" \
+            --controller_training=TRUE  \
+            --cnn_macro_num_layers=12 \
+            --batch_size=128 \
+            --num_epochs=310  \
+
+        参数说明：
+        前三个参数说明同上
+        search_for：用户需指明此次的搜索空间，必须为macro或micro，代表宏观搜索空间和基于Cell的搜索空间（这里宏观空间为macro）
+        controller_training：代表此次执行为搜索过程或网络重新refit过程，搜索过程时为TRUE，refit时为FALSE
+        cnn_macro_num_layers：此次搜索的CNN网络的层数
+        batch_size：搜索过程中用户可指定批处理大小
+        num_epochs：指定搜索过程一共迭代多少轮
+
+    2) 用户需要利用 1) 中找到的架构（fixed_arc），在完整的数据集上refit一次。此处用户需要运行fixed_cnn_macro.sh。
+
+        其中，fixed_cnn_macro.sh中的执行内容（包括用户自定义参数）：
+
+        fixed_arc="2"
+        fixed_arc="$fixed_arc 4 0"
+        ……
+
+        python src/trainer.py \
+            --output_dir="output" \
+            --data_path="data/cifar10" \
+            --network_type="cnn" \
+            --search_for="macro" \
+            --controller_training=FALSE \
+            --cnn_macro_num_layers=12 \
+            --batch_size=100 \
+            --num_epochs=310 \
+            --child_fixed_arc="${fixed_arc}" \
+
+        参数说明：
+        梯度排列的fixed_arc为1)中搜索出的最佳架构形式（脚本默认的为一个样例）
+        此脚本参数和1）中大致相同，最后的child_fixed_arc表示此次需要refit的架构
+
+
+    在基于Cell的空间下的搜索方式：
+
+    1) 用户可以运行源目录下search_cnn_micro.sh，执行CNN_Micro的搜索过程。
+
+        其中，search_cnn_micro.sh中的执行内容（包括用户自定义参数）：
+
+        python src/trainer.py \
+            --output_dir="output" \
+            --data_path="data/cifar10" \
+            --network_type="cnn" \
+            --search_for="micro" \
+            --controller_training=TRUE \
+            --cnn_micro_num_layers=6 \
+            --cnn_micro_num_cells=5 \
+            --batch_size=160 \
+            --num_epochs=150 \
+
+        参数说明：
+        参数基本和macro空间中表达形式一样
+        不同处：
+        cnn_micro_num_layers：完整的架构需要cnn_micro_num_layers个Normal Cell和一个Reduction Cell不断堆叠形成
+        cnn_micro_num_cells：在一个Cell中有cnn_micro_num_cells个节点
+
+    2) 用户需要利用 1) 中找到的架构（fixed_arc），在完整的数据集上refit一次。此处用户需要运行fixed_cnn_micro.sh。
+
+        其中，fixed_cnn_micro.sh中的执行内容（包括用户自定义参数）：
+
+        fixed_arc="0 1 1 0 0 2 0 0 0 0 3 0 0 1 0 4 0 1 1 4"
+        fixed_arc="$fixed_arc 1 3 1 0 1 4 1 3 1 0 1 0 1 1 1 2 1 0 1 4"
+
+        python src/trainer.py \
+            --output_dir="output" \
+            --data_path="data/cifar10" \
+            --network_type="cnn" \
+            --search_for="micro" \
+            --controller_training=FALSE \
+            --cnn_micro_num_layers=15 \
+            --cnn_micro_num_cells=5 \
+            --batch_size=128 \
+            --num_epochs=630 \
+            --child__fixed_arc="${fixed_arc}" \
+
+        参数说明：
+        梯度排列的fixed_arc为1)中搜索出的最佳架构形式（脚本中默认的为一个样例）
+        此脚本参数和CNN_Macro中大致相同，最后的child__fixed_arc表示此次需要refit的架构
+
